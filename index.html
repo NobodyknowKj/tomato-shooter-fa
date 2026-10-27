@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>گوجه‌پران 🍅 | پرتاب گوجه به دنیای واقعی</title>
+<meta name="description" content="بازی گوجه‌پرانی با دوربین گوشی: روی هر جای دنیای واقعی بزن و گوجه نامحدود پرتاب کن. بدون ضبط و بدون ارسال ویدیو.">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#111;font-family:Vazirmatn,Tahoma,"Segoe UI",sans-serif;color:#fff}
+  #stage{position:fixed;inset:0;overflow:hidden;touch-action:none;user-select:none;background:radial-gradient(120% 100% at 50% 0%,#3a2b1e 0%,#1c130d 45%,#0d0906 100%)}
+  #stage::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 20%,rgba(255,255,255,.08),transparent 40%),radial-gradient(circle at 80% 80%,rgba(255,80,40,.12),transparent 45%);pointer-events:none}
+  video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+  video.mirror{transform:scaleX(-1)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #topbar{position:absolute;top:calc(10px + env(safe-area-inset-top));right:10px;left:10px;display:none;justify-content:space-between;align-items:center;gap:8px;z-index:5;pointer-events:none}
+  #topbar>*{pointer-events:auto}
+  .pill{background:rgba(0,0,0,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:8px 13px;font-size:14px;font-weight:700;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+  .pill b{color:#ffdd66}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+  .iconbtn{background:rgba(0,0,0,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22);color:#fff;border-radius:999px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer}
+  .iconbtn:active{transform:scale(.94)}
+  #hint{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom));right:0;left:0;text-align:center;z-index:5;pointer-events:none;display:none}
+  #hint span{display:inline-block;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);padding:9px 16px;border-radius:999px;font-size:14px}
+  #toast{position:absolute;top:calc(66px + env(safe-area-inset-top));right:0;left:0;text-align:center;z-index:9;pointer-events:none;display:none}
+  #toast span{display:inline-block;background:#b91c1c;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw}
+  /* شروع */
+  #start{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.78)),radial-gradient(100% 80% at 50% 0%,rgba(220,38,38,.35),transparent 60%)}
+  .card{width:min(520px,100%);background:rgba(20,10,8,.88);border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:24px 22px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+  .tomato-big{font-size:72px;line-height:1;filter:drop-shadow(0 10px 20px rgba(220,38,38,.5))}
+  h1{margin:8px 0 6px;font-size:30px}
+  .sub{color:#fca5a5;font-weight:700;margin:0 0 14px}
+  p{line-height:1.9;font-size:15px;color:#e5e7eb;margin:8px 0}
+  .privacy{background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.45);border-radius:14px;padding:12px 14px;text-align:right;font-size:14px;line-height:1.9}
+  .privacy b{color:#86efac}
+  .bigbtn{width:100%;border:0;border-radius:16px;padding:15px;font-family:inherit;font-size:17px;font-weight:800;cursor:pointer;margin-top:12px}
+  .red{background:linear-gradient(180deg,#ef4444,#b91c1c);color:#fff;box-shadow:0 10px 24px rgba(220,38,38,.45)}
+  .ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25)}
+  .bigbtn:active{transform:scale(.98)}
+  .small{font-size:12.5px;color:#9ca3af;line-height:1.8}
+  @media (max-width:420px){h1{font-size:26px}.tomato-big{font-size:60px}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <video id="video" playsinline muted autoplay></video>
+  <canvas id="game"></canvas>
+
+  <div id="topbar">
+    <div class="pill">🍅 <span id="count">۰</span> پرتاب <span style="opacity:.6">| ∞ نامحدود</span></div>
+    <div class="btns">
+      <button class="iconbtn" id="switchBtn" type="button">🔄 دوربین جلو</button>
+      <button class="iconbtn" id="soundBtn" type="button">🔊 صدا روشن</button>
+      <button class="iconbtn" id="clearBtn" type="button">🧹 پاک‌کردن لکه‌ها</button>
+      <button class="iconbtn" id="stopBtn" type="button">⏹ توقف دوربین</button>
+    </div>
+  </div>
+
+  <div id="hint"><span>👆 روی هر جای تصویر بزن تا گوجه پرتاب شود</span></div>
+  <div id="toast"><span id="toastText"></span></div>
+
+  <div id="start">
+    <div class="card">
+      <div class="tomato-big">🍅</div>
+      <h1>گوجه‌پران</h1>
+      <p class="sub">دنیای واقعی، هدف توست!</p>
+      <p>دوربین را به سمت هر چیزی بگیر؛ دیوار، میز، درخت، تابلو… بعد روی همان نقطه بزن تا یک گوجه واقعی با چرخش پرتاب شود و همان‌جا بترکد و له شود.</p>
+      <div class="privacy">
+        🔒 <b>بدون ضبط، بدون ذخیره، بدون ارسال:</b><br>
+        دوربین فقط پس‌زمینهٔ زندهٔ همین بازی است. هیچ ویدیو یا عکسی ضبط نمی‌شود، جایی ذخیره نمی‌شود و برای هیچ‌کس ارسال نمی‌شود. تصویر فقط روی همین گوشی دیده می‌شود.
+      </div>
+      <button class="bigbtn red" id="startBack" type="button">📷 شروع با دوربین عقب</button>
+      <button class="bigbtn ghost" id="startFront" type="button">🤳 شروع با دوربین جلو (سلفی)</button>
+      <button class="bigbtn ghost" id="noCamBtn" type="button">🎮 بازی بدون دوربین</button>
+      <p class="small">با زدن دکمهٔ شروع، مرورگر از تو اجازهٔ دسترسی به دوربین می‌خواهد. اگر اجازه ندهی، باز هم می‌توانی بدون دوربین بازی کنی.<br>بهترین تجربه روی گوشی و با مرورگر کروم یا سافاری است. این صفحه روی HTTPS (GitHub Pages) باز می‌شود تا دوربین کار کند.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var video = document.getElementById('video');
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var startBox = document.getElementById('start');
+  var topbar = document.getElementById('topbar');
+  var hint = document.getElementById('hint');
+  var countEl = document.getElementById('count');
+  var switchBtn = document.getElementById('switchBtn');
+  var soundBtn = document.getElementById('soundBtn');
+  var toast = document.getElementById('toast');
+  var toastText = document.getElementById('toastText');
+
+  var W = 0, H = 0, DPR = 1;
+  var stream = null, facing = 'environment', started = false;
+  var tomatoes = [], particles = [], splats = [];
+  var thrown = 0, soundOn = true, audioCtx = null, toastTimer = null;
+  var faDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+  function fa(n){ return String(n).replace(/[0-9]/g, function(d){ return faDigits[+d]; }); }
+  function showToast(msg){
+    toastText.textContent = msg; toast.style.display = 'block';
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ toast.style.display = 'none'; }, 3800);
+  }
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR); canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize); resize();
+
+  function rand(a, b){ return a + Math.random() * (b - a); }
+  function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+  // ---- صدای له‌شدن (ساخته‌شده با WebAudio، بدون هیچ فایل صوتی) ----
+  function ensureAudio(){
+    if (!audioCtx){
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function playSplat(){
+    if (!soundOn || !audioCtx) return;
+    try {
+      var t = audioCtx.currentTime;
+      // ضربه بم + نویز پاشش
+      var osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(160, t);
+      osc.frequency.exponentialRampToValueAtTime(45, t + 0.18);
+      g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(g); g.connect(audioCtx.destination); osc.start(t); osc.stop(t + 0.25);
+      var len = Math.floor(audioCtx.sampleRate * 0.28);
+      var buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+      var data = buf.getChannelData(0);
+      for (var i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
+      var src = audioCtx.createBufferSource(); src.buffer = buf;
+      var filt = audioCtx.createBiquadFilter(); filt.type = 'lowpass';
+      filt.frequency.setValueAtTime(2800, t); filt.frequency.exponentialRampToValueAtTime(300, t + 0.28);
+      var g2 = audioCtx.createGain(); g2.gain.setValueAtTime(0.45, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      src.connect(filt); filt.connect(g2); g2.connect(audioCtx.destination); src.start(t);
+    } catch(e){}
+  }
+  function playWhoosh(){
+    if (!soundOn || !audioCtx) return;
+    try {
+      var t = audioCtx.currentTime, len = Math.floor(audioCtx.sampleRate * 0.3);
+      var buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+      var data = buf.getChannelData(0);
+      for (var i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (i / len) * 0.25;
+      var src = audioCtx.createBufferSource(); src.buffer = buf;
+      var filt = audioCtx.createBiquadFilter(); filt.type = 'bandpass'; filt.frequency.setValueAtTime(500, t);
+      filt.frequency.exponentialRampToValueAtTime(2400, t + 0.3);
+      src.connect(filt); filt.connect(audioCtx.destination); src.start(t);
+    } catch(e){}
+  }
+
+  // ---- رسم گوجه واقعی ----
+  function drawTomato(x, y, r, rot, squash){
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(1, squash);
+    var g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r * 1.15);
+    g.addColorStop(0, '#ff7a6b'); g.addColorStop(0.35, '#ef2d2d');
+    g.addColorStop(0.7, '#c81e1e'); g.addColorStop(1, '#7f0d0d');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    // بدنه گوجه با فرورفتگی بالا
+    ctx.moveTo(0, -r * 0.92);
+    ctx.bezierCurveTo(r * 0.9, -r * 0.95, r * 1.02, -r * 0.2, r * 0.88, r * 0.45);
+    ctx.bezierCurveTo(r * 0.7, r * 0.98, -r * 0.7, r * 0.98, -r * 0.88, r * 0.45);
+    ctx.bezierCurveTo(-r * 1.02, -r * 0.2, -r * 0.9, -r * 0.95, 0, -r * 0.92);
+    ctx.closePath(); ctx.fill();
+    // شیارهای عمودی
+    ctx.strokeStyle = 'rgba(120,0,0,.35)'; ctx.lineWidth = Math.max(1, r * 0.03);
+    for (var i = -2; i <= 2; i++){
+      if (i === 0) continue;
+      ctx.beginPath();
+      ctx.moveTo(i * r * 0.28, -r * 0.75);
+      ctx.quadraticCurveTo(i * r * 0.42, 0, i * r * 0.22, r * 0.82);
+      ctx.stroke();
+    }
+    // برق روی گوجه
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.ellipse(-r * 0.38, -r * 0.42, r * 0.22, r * 0.32, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.28)';
+    ctx.beginPath(); ctx.ellipse(-r * 0.15, -r * 0.55, r * 0.1, r * 0.16, -0.4, 0, Math.PI * 2); ctx.fill();
+    // ساقه و برگ‌ها
+    ctx.fillStyle = '#2f7a1e';
+    ctx.beginPath(); ctx.ellipse(0, -r * 0.88, r * 0.34, r * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#3f9a2a'; ctx.lineWidth = Math.max(2, r * 0.07); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.9); ctx.quadraticCurveTo(r * 0.05, -r * 1.15, r * 0.18, -r * 1.22); ctx.stroke();
+    ctx.fillStyle = '#43a047';
+    ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.92, r * 0.3, r * 0.12, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.3, -r * 0.92, r * 0.3, r * 0.12, 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- ساخت لکه له‌شدن ----
+  function makeSplat(x, y){
+    var size = rand(42, 68);
+    var pts = [];
+    var n = 16;
+    for (var i = 0; i < n; i++){
+      var a = (i / n) * Math.PI * 2;
+      pts.push({ a: a, r: size * rand(0.68, 1.18) });
+    }
+    var drops = [];
+    for (var j = 0; j < 16; j++){
+      var ang = Math.random() * Math.PI * 2, d = size * rand(1.05, 1.9);
+      drops.push({ x: x + Math.cos(ang) * d, y: y + Math.sin(ang) * d, r: rand(2, 7) });
+    }
+    var seeds = [];
+    for (var k = 0; k < 9; k++){
+      seeds.push({ dx: rand(-size * 0.6, size * 0.6), dy: rand(-size * 0.55, size * 0.55), r: rand(2.5, 4.5), rot: Math.random() * Math.PI });
+    }
+    var drips = [];
+    for (var m = 0; m < 4; m++){
+      drips.push({ dx: rand(-size * 0.7, size * 0.7), w: rand(3, 6), max: rand(14, 42), len: 0 });
+    }
+    return { x: x, y: y, size: size, pts: pts, drops: drops, seeds: seeds, drips: drips, born: performance.now(), scale: 0.25, alpha: 1 };
+  }
+  function drawSplat(s, now){
+    var age = (now - s.born) / 1000;
+    if (s.scale < 1) s.scale = Math.min(1, s.scale + 0.09);
+    // چکه‌ها به‌تدریج بلند می‌شوند
+    s.drips.forEach(function(d){ if (d.len < d.max) d.len = Math.min(d.max, d.len + 0.9); });
+    ctx.save(); ctx.translate(s.x, s.y); ctx.scale(s.scale, s.scale); ctx.globalAlpha = s.alpha;
+    // پاشش بیرونی
+    ctx.fillStyle = '#d92b2b';
+    s.drops.forEach(function(d){
+      ctx.beginPath(); ctx.arc(d.x - s.x, d.y - s.y, d.r, 0, Math.PI * 2); ctx.fill();
+    });
+    // لکه اصلی نامنظم
+    var g = ctx.createRadialGradient(-s.size * 0.3, -s.size * 0.3, 4, 0, 0, s.size * 1.15);
+    g.addColorStop(0, '#ff5a4a'); g.addColorStop(0.45, '#e11d1d'); g.addColorStop(0.8, '#a81212'); g.addColorStop(1, 'rgba(140,10,10,.85)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    s.pts.forEach(function(p, i){
+      var px = Math.cos(p.a) * p.r, py = Math.sin(p.a) * p.r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.closePath(); ctx.fill();
+    // قسمت له‌شده روشن وسط (پالپ)
+    ctx.fillStyle = 'rgba(255,120,100,.55)';
+    ctx.beginPath(); ctx.ellipse(0, -s.size * 0.1, s.size * 0.5, s.size * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+    // دانه‌ها
+    s.seeds.forEach(function(sd){
+      ctx.save(); ctx.translate(sd.dx, sd.dy); ctx.rotate(sd.rot);
+      ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.ellipse(0, 0, sd.r, sd.r * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.ellipse(0, 0, sd.r * 0.5, sd.r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+    // پوست له‌شده
+    ctx.fillStyle = 'rgba(180,20,20,.8)';
+    ctx.beginPath(); ctx.ellipse(s.size * 0.35, s.size * 0.25, s.size * 0.28, s.size * 0.12, 0.6, 0, Math.PI * 2); ctx.fill();
+    // چکه‌های رو به پایین
+    ctx.fillStyle = '#c81e1e';
+    s.drips.forEach(function(d){
+      ctx.beginPath();
+      ctx.moveTo(d.dx - d.w / 2, s.size * 0.55);
+      ctx.lineTo(d.dx + d.w / 2, s.size * 0.55);
+      ctx.lineTo(d.dx + d.w / 2, s.size * 0.55 + d.len);
+      ctx.quadraticCurveTo(d.dx, s.size * 0.55 + d.len + 6, d.dx - d.w / 2, s.size * 0.55 + d.len);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(d.dx, s.size * 0.55 + d.len + 4, d.w * 0.7, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
+  }
+  function burst(x, y){
+    for (var i = 0; i < 26; i++){
+      var a = Math.random() * Math.PI * 2, sp = rand(2, 9);
+      particles.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 3, r: rand(2, 6.5), life: 1 });
+    }
+  }
+
+  function throwTomato(tx, ty){
+    ensureAudio(); playWhoosh();
+    var sx = W / 2, sy = H + 70;
+    var cx = (sx + tx) / 2, cy = Math.min(sy, ty) - rand(140, 240);
+    var dist = Math.hypot(tx - sx, ty - sy);
+    tomatoes.push({
+      sx: sx, sy: sy, cx: cx, cy: cy, tx: tx, ty: ty,
+      t: 0, dur: Math.max(380, Math.min(750, dist * 0.55)),
+      rot: 0, spin: rand(6, 12) * (Math.random() < 0.5 ? -1 : 1), size: rand(34, 44)
+    });
+    thrown++; countEl.textContent = fa(thrown);
+  }
+
+  function loop(now){
+    ctx.clearRect(0, 0, W, H);
+    // لکه‌های قدیمی (حداکثر ۴۰ تا)
+    while (splats.length > 40) splats.shift();
+    splats.forEach(function(s){ drawSplat(s, now); });
+    // ذرات پاشش
+    particles = particles.filter(function(p){ return p.life > 0; });
+    particles.forEach(function(p){
+      p.x += p.vx; p.y += p.vy; p.vy += 0.45; p.life -= 0.03;
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = pick(['#ef4444', '#dc2626', '#f87171']);
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+    // گوجه‌های در حال پرواز
+    var keep = [];
+    tomatoes.forEach(function(t){
+      t.t += 16.7 / t.dur;
+      if (t.t >= 1){
+        var s = makeSplat(t.tx, t.ty);
+        splats.push(s); burst(t.tx, t.ty); playSplat();
+        return;
+      }
+      var mt = 1 - t.t;
+      var x = mt * mt * t.sx + 2 * mt * t.t * t.cx + t.t * t.t * t.tx;
+      var y = mt * mt * t.sy + 2 * mt * t.t * t.cy + t.t * t.t * t.ty;
+      var squash = t.t > 0.92 ? 0.55 : 1;
+      var scale = 1.15 - t.t * 0.45;
+      t.rot += 0.18 * t.spin / 10;
+      drawTomato(x, y, t.size * scale, t.rot, squash);
+      keep.push(t);
+    });
+    tomatoes = keep;
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---- دوربین ----
+  function stopStream(){
+    if (stream){ stream.getTracks().forEach(function(tr){ tr.stop(); }); stream = null; }
+    video.srcObject = null; video.style.display = 'none';
+  }
+  function updateSwitchLabel(){
+    switchBtn.textContent = facing === 'environment' ? '🔄 دوربین جلو' : '🔄 دوربین عقب';
+    video.classList.toggle('mirror', facing === 'user');
+  }
+  async function startCamera(mode){
+    facing = mode;
+    stopStream();
+    try {
+      var constraints = { audio: false, video: { facingMode: { ideal: mode }, width: { ideal: 1920 }, height: { ideal: 1080 } } };
+      try { stream = await navigator.mediaDevices.getUserMedia(constraints); }
+      catch (e) {
+        // اگر حالت دقیق پشتیبانی نشد، با حالت ساده دوباره تلاش کن
+        stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: mode } });
+      }
+      video.srcObject = stream; video.style.display = 'block';
+      try { await video.play(); } catch (e) {}
+      started = true;
+      startBox.style.display = 'none'; topbar.style.display = 'flex'; hint.style.display = 'block';
+      updateSwitchLabel();
+    } catch (e) {
+      showToast('دسترسی به دوربین داده نشد یا دوربین در دسترس نیست. می‌توانی بدون دوربین بازی کنی.');
+    }
+  }
+  function startWithoutCamera(){
+    stopStream(); started = true;
+    startBox.style.display = 'none'; topbar.style.display = 'flex'; hint.style.display = 'block';
+    updateSwitchLabel();
+    showToast('بدون دوربین بازی می‌کنی؛ پس‌زمینه تیره است، ولی پرتاب و له‌شدن گوجه کامل کار می‌کند.');
+  }
+  document.getElementById('startBack').addEventListener('click', function(){ ensureAudio(); startCamera('environment'); });
+  document.getElementById('startFront').addEventListener('click', function(){ ensureAudio(); startCamera('user'); });
+  document.getElementById('noCamBtn').addEventListener('click', function(){ ensureAudio(); startWithoutCamera(); });
+  switchBtn.addEventListener('click', function(){
+    if (!stream){ showToast('اول دوربین را فعال کن.'); return; }
+    startCamera(facing === 'environment' ? 'user' : 'environment');
+  });
+  document.getElementById('clearBtn').addEventListener('click', function(){ splats = []; particles = []; });
+  document.getElementById('stopBtn').addEventListener('click', function(){
+    stopStream(); started = false;
+    topbar.style.display = 'none'; hint.style.display = 'none'; startBox.style.display = 'flex';
+  });
+  soundBtn.addEventListener('click', function(){
+    soundOn = !soundOn; ensureAudio();
+    soundBtn.textContent = soundOn ? '🔊 صدا روشن' : '🔇 صدا خاموش';
+  });
+
+  // ضربه = پرتاب؛ روی دکمه‌های بالا کلیک، پرتاب حساب نمی‌شود
+  canvas.addEventListener('pointerdown', function(e){
+    if (!started) return;
+    e.preventDefault();
+    var rect = canvas.getBoundingClientRect();
+    throwTomato(e.clientX - rect.left, e.clientY - rect.top);
+  }, { passive: false });
+
+  // اگر مرورگر دوربین ندارد
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    document.getElementById('startBack').disabled = true;
+    document.getElementById('startFront').disabled = true;
+  }
+})();
+</script>
+</body>
+</html>
